@@ -1,0 +1,18 @@
+[submodule "open.mp"]
+	path = open.mp
+	url = https://github.com/openmultiplayer/open.mp-sdk
+[submodule "robin-hood-hashing"]
+	path = robin-hood-hashing
+	url = https://github.com/martinus/robin-hood-hashing.git
+[submodule "glm"]
+	path = glm
+	url = https://github.com/g-truc/glm.git
+[submodule "string-view-lite"]
+	path = string-view-lite
+	url = https://github.com/martinmoene/string-view-lite.git
+[submodule "span-lite"]
+	path = span-lite
+	url = https://github.com/martinmoene/span-lite.git
+[submodule "subhook"]
+	path = subhook
+	url = https://github.com/Zeex/subhook.git
