@@ -1,0 +1,39 @@
+name: Build XMLUI (Linux 32-bit)
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt update
+          sudo apt install -y g++-multilib
+
+      - name: Compile plugin
+        run: |
+          mkdir -p amx
+          cp sscanf-master/amx/amx.h amx/
+          g++ -shared -fPIC -m32 \
+            -I. \
+            -Isscanf-master/amx \
+            -static-libgcc -static-libstdc++ \
+            -o xmlui.so \
+            plugins/xmlui/xmlui.cpp
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: xmlui-linux
+          path: xmlui.so
