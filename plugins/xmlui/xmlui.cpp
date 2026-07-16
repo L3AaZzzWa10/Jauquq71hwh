@@ -1,39 +1,49 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <miniamx/amx.h>
+#include <cstring>
+#include "amx/amx.h"
+#include "plugincommon.h"
+#include "RakNet/RakServerInterface.h"
+#include "RakNet/BitStream.h"
 
-#ifdef _WIN32
-#define PLUGIN_EXPORT __declspec(dllexport)
-#else
-#define PLUGIN_EXPORT __attribute__((visibility("default")))
-#endif
-
-#define PLUGIN_CALL
-
+extern void *pAMXFunctions;
 typedef void (*logprintf_t)(const char* format, ...);
-typedef void (*SendClientPacket_t)(int playerid, const unsigned char* data, int len);
-
 logprintf_t logprintf;
-SendClientPacket_t SendClientPacket;
+RakServerInterface *pRakServer = NULL;
 
-cell SendXML(AMX *amx, cell *params) {
-    int playerid = params[1];
-    char *xml;
-    amx_GetAddr(amx, params[2], (cell**)&xml);
-    
-    int len = strlen(xml);
-    unsigned char packet[512];
-    int pos = 0;
-    packet[pos++] = 0x80; // ID_RPC
-    packet[pos++] = 220;  // RPC ID
-    packet[pos++] = 0x01; // sub-command
-    packet[pos++] = (len >> 8) & 0xFF;
-    packet[pos++] = len & 0xFF;
-    memcpy(&packet[pos], xml, len);
-    pos += len;
-    
-    SendClientPacket(playerid, packet, pos);
+// === MOHIM: had function khassha tkon mawjouda, wla l plugin ma تلقاش ===
+PLUGIN_EXPORT unsigned int PLUGIN_CALL Supports() {
+    return SUPPORTS_VERSION | SUPPORTS_AMX_NATIVES;
+}
+
+PLUGIN_EXPORT bool PLUGIN_CALL Load(void **ppData) {
+    pAMXFunctions = ppData[PLUGIN_DATA_AMX_EXPORTS];
+    logprintf = (logprintf_t)ppData[PLUGIN_DATA_LOGPRINTF];
+    pRakServer = (RakServerInterface*)ppData[PLUGIN_DATA_RAKSERVER];
+    logprintf(" [xmlui] Plugin loaded.");
+    return true;
+}
+
+PLUGIN_EXPORT void PLUGIN_CALL Unload() {}
+
+cell AMX_NATIVE_CALL SendXML(AMX *amx, cell *params) {
+    int playerid = static_cast<int>(params[1]);
+
+    cell *addr;
+    amx_GetAddr(amx, params[2], &addr);
+    int len;
+    amx_StrLen(addr, &len);
+    char *xml = new char[len + 1];
+    amx_GetString(xml, addr, 0, len + 1);
+
+    RakNet::BitStream bs;
+    bs.Write((unsigned char)0x01);        // sub-command
+    bs.Write((unsigned short)len);
+    bs.Write(xml, len);
+
+    unsigned int rpcId = 220;
+    pRakServer->RPC(&rpcId, &bs, HIGH_PRIORITY, RELIABLE_ORDERED, 0,
+                     pRakServer->GetPlayerIDFromIndex(playerid), false, false);
+
+    delete[] xml;
     return 1;
 }
 
@@ -49,11 +59,3 @@ PLUGIN_EXPORT int PLUGIN_CALL AmxLoad(AMX *amx) {
 PLUGIN_EXPORT int PLUGIN_CALL AmxUnload(AMX *amx) {
     return AMX_ERR_NONE;
 }
-
-PLUGIN_EXPORT bool PLUGIN_CALL Load(void **ppData) {
-    logprintf = (logprintf_t)ppData[0];
-    SendClientPacket = (SendClientPacket_t)ppData[2];
-    return true;
-}
-
-PLUGIN_EXPORT void PLUGIN_CALL Unload() {}
